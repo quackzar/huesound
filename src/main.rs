@@ -1,5 +1,5 @@
 
-use hueclient::CommandLight;
+use hueclient::{CommandLight, Bridge};
 
 use rodio::Sink;
 use rodio::{source::Source, Decoder, OutputStream};
@@ -18,6 +18,19 @@ fn lights(receiver: Receiver<()>) {
     let lights = bridge.get_all_lights().unwrap();
     let n = lights.len();
 
+
+    let mut i = 0;
+    const DELAY : u64 = 200;
+    loop {
+        receiver.recv().unwrap();
+        sleep(Duration::from_millis(DELAY));
+        let light = &lights[i];
+        fire(&bridge, light.id);
+        i = (i + 1) % n;
+    }
+}
+
+fn fire(bridge: &Bridge, light: usize) {
     let impact = CommandLight::default().with_bri(255)
         .with_hue(41000)
         .with_sat(70)
@@ -26,24 +39,15 @@ fn lights(receiver: Receiver<()>) {
         .with_sat(200)
         .with_hue(45555)
         .with_xy(0.8, 0.8);
-
-    let mut i = 0;
-    const DELAY : u64 = 200;
-    loop {
-        receiver.recv().unwrap();
-        sleep(Duration::from_millis(DELAY));
-        let light = &lights[i];
-        bridge.set_light_state(light.id, &impact).unwrap_or_else(|e| {
-            eprintln!("{e}");
-            ().into()
-        });
-        sleep(Duration::from_millis(150));
-        bridge.set_light_state(light.id, &normal).unwrap_or_else(|e| {
-            eprintln!("{e}");
-            ().into()
-        });
-        i = (i + 1) % n;
-    }
+    bridge.set_light_state(light, &impact).unwrap_or_else(|e| {
+        eprintln!("{e}");
+        ().into()
+    });
+    sleep(Duration::from_millis(150));
+    bridge.set_light_state(light, &normal).unwrap_or_else(|e| {
+        eprintln!("{e}");
+        ().into()
+    });
 }
 
 fn main() {
