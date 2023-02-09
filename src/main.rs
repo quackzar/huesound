@@ -18,18 +18,27 @@ fn lights(receiver: Receiver<()>) {
     let lights = bridge.get_all_lights().unwrap();
     let n = lights.len();
 
+    let impact = CommandLight::default().with_bri(255)
+        .with_hue(41000)
+        .with_sat(70)
+        .with_xy(0.2, 0.2);
+    let normal = CommandLight::default().with_bri(70)
+        .with_sat(200)
+        .with_hue(45555)
+        .with_xy(0.8, 0.8);
+
     let mut i = 0;
+    const DELAY : u64 = 200;
     loop {
         receiver.recv().unwrap();
+        sleep(Duration::from_millis(DELAY));
         let light = &lights[i];
-        let off = CommandLight::default().off();
-        let on = CommandLight::default().on();
-        bridge.set_light_state(light.id, &off).unwrap_or_else(|e| {
+        bridge.set_light_state(light.id, &impact).unwrap_or_else(|e| {
             eprintln!("{e}");
             ().into()
         });
-        sleep(Duration::from_millis(100));
-        bridge.set_light_state(light.id, &on).unwrap_or_else(|e| {
+        sleep(Duration::from_millis(150));
+        bridge.set_light_state(light.id, &normal).unwrap_or_else(|e| {
             eprintln!("{e}");
             ().into()
         });
@@ -44,13 +53,8 @@ fn main() {
 
     // let source = SineWave::new(50.0);
 
-    // Spawn a thread periodically run FFT on the sound stream
     let sample_rate = source.sample_rate();
     let (producer, consumer) = mpsc::channel();
-    std::thread::spawn(move || {
-        fft_check(consumer, sample_rate);
-    });
-
     let source =
         source
             .convert_samples()
@@ -66,6 +70,11 @@ fn main() {
     let sink = Sink::try_new(&stream_handle).unwrap();
 
     sink.append(source);
+
+    // Spawn a thread periodically run FFT on the sound stream
+    std::thread::spawn(move || {
+        fft_check(consumer, sample_rate);
+    });
     sink.sleep_until_end();
 }
 
@@ -118,16 +127,19 @@ fn fft_check<I: Source<Item = f32>>(consumer: Receiver<I>, sample_rate: u32) -> 
             // let t1 = std::time::Instant::now();
             // println!("{:#?}", t1-t0);
 
-            for (n, f) in freq.iter().enumerate().skip(0).take(10) {
-                let n = n * RESOLUTION;
-                if *f > 1.50 {
-                    light.send(()).unwrap();
-                    print!("{n} Hz: {f:.2}\t");
-                } else {
-                    print!("{n} Hz:     \t");
-                }
+            // for (n, f) in freq.iter().enumerate().skip(0).take(10) {
+            //     let n = n * RESOLUTION;
+            //     if *f > 1.00 {
+            //         print!("{n} Hz: {f:.2}\t");
+            //     } else {
+            //         print!("{n} Hz:     \t");
+            //     }
+            // }
+            let power = freq[1..=4].iter().sum::<f32>();
+            if power > 3.0 {
+                println!("{power}");
+                light.send(()).unwrap();
             }
-            println!();
         };
     }
 }

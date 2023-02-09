@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 hueclient = "0.4.2"
-# anyhow = "1.0"
+anyhow = "1.0"
 # clap = {version = "4.1", features = ["derive"]}
 itertools = "0.10.5"
 rodio = "0.16.0"
