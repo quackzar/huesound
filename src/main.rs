@@ -11,7 +11,7 @@ use std::sync::mpsc::{self, Receiver};
 use std::thread::{self, sleep};
 use std::{fs::File, time::Duration};
 
-fn lights(receiver: Receiver<()>) {
+fn lights(receiver: Receiver<u32>) {
     let bridge =
         hueclient::Bridge::discover_required().with_user(std::env::var("HUE_USER").unwrap());
 
@@ -20,30 +20,35 @@ fn lights(receiver: Receiver<()>) {
 
 
     let mut i = 0;
-    const DELAY : u64 = 200;
+    const DELAY : u64 = 000;
     loop {
-        receiver.recv().unwrap();
+        let power = receiver.recv().unwrap();
         sleep(Duration::from_millis(DELAY));
-        let light = &lights[i];
-        fire(&bridge, light.id);
-        i = (i + 1) % n;
+        for _ in 0..power {
+            let light = &lights[i];
+            fire(&bridge, light.id);
+            i = (i + 1) % n;
+        }
     }
 }
 
 fn fire(bridge: &Bridge, light: usize) {
-    let impact = CommandLight::default().with_bri(255)
-        .with_hue(41000)
-        .with_sat(70)
-        .with_xy(0.2, 0.2);
-    let normal = CommandLight::default().with_bri(70)
-        .with_sat(200)
-        .with_hue(45555)
-        .with_xy(0.8, 0.8);
+    let impact = CommandLight::default()
+        // .with_xy(0.25, 0.3)
+        .with_bri(255)
+        .with_ct(154);
+        // .with_sat(100)
+        // .with_hue(41000);
+    let normal = CommandLight::default()
+        .with_bri(10)
+        .with_ct(250);
+        // .with_sat(200)
+        // .with_hue(10555);
     bridge.set_light_state(light, &impact).unwrap_or_else(|e| {
         eprintln!("{e}");
         ().into()
     });
-    sleep(Duration::from_millis(150));
+    sleep(Duration::from_millis(50));
     bridge.set_light_state(light, &normal).unwrap_or_else(|e| {
         eprintln!("{e}");
         ().into()
@@ -142,7 +147,7 @@ fn fft_check<I: Source<Item = f32>>(consumer: Receiver<I>, sample_rate: u32) -> 
             let power = freq[1..=4].iter().sum::<f32>();
             if power > 3.0 {
                 println!("{power}");
-                light.send(()).unwrap();
+                light.send(power as u32).unwrap();
             }
         };
     }
